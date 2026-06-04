@@ -6,6 +6,7 @@ from collections import Counter, defaultdict
 import os
 import math
 
+BM25_K1 = 1.5
 stemmer = PorterStemmer()
 
 
@@ -34,6 +35,10 @@ class InvertedIndex:
         doc_id = int(doc_id) if not isinstance(doc_id, int) else doc_id
         return self.term_frequencies[doc_id][token[0]]
 
+    def get_bm25_tf(self, doc_id, term, k1=BM25_K1):
+        tf = self.get_tf(doc_id, term)
+        return (tf * (k1 + 1)) / (tf + k1)
+
     def get_idf(self, term):
         token = tokenize_text(term)
         if len(token) != 1:
@@ -42,6 +47,15 @@ class InvertedIndex:
         doc_count = len(self.docmap)
         term_doc_count = len(self.index[token])
         return math.log((doc_count + 1) / (term_doc_count + 1))
+
+    def get_bm25_idf(self, term: str) -> float:
+        token = tokenize_text(term)
+        if len(token) != 1:
+            raise ValueError("can only have 1 tokens")
+        token = token[0]
+        doc_count = len(self.docmap)
+        term_doc_count = len(self.index[token])
+        return math.log((doc_count - term_doc_count + 0.5) / (term_doc_count + 0.5) + 1)
 
     def get_tfidf(self, doc_id, term):
         tf = self.get_tf(doc_id, term)
@@ -86,6 +100,18 @@ def idf_command(term):
     idx.load()
     idf = idx.get_idf(term)
     print(f"Inverse document frequency of '{term}': {idf:.2f}")
+
+
+def bm25_tf_command(doc_id, term, k1=BM25_K1):
+    inverted_index = InvertedIndex()
+    inverted_index.load()
+    return inverted_index.get_bm25_tf(doc_id, term, k1)
+
+
+def bm25_idf_command(term):
+    inverted_index = InvertedIndex()
+    inverted_index.load()
+    return inverted_index.get_bm25_idf(term)
 
 
 def tf_command(doc_id, term):
