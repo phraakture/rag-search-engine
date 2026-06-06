@@ -5,9 +5,9 @@ import numpy as np
 from .search_utils import (
     DEFAULT_SEARCH_LIMIT,
     MOVIE_EMBEDDINGS_PATH,
-    SearchResult,
-    format_search_result,
+    DEFAULT_CHUNK_SIZE,
     load_movies,
+    DEFAULT_CHUNK_OVERLAP,
 )
 
 
@@ -47,30 +47,37 @@ class SemanticSearch:
             raise ValueError("Must have text to create an embedding")
         return self.model.encode([text])[0]
 
-    def search(
-        self, query: str, limit: int = DEFAULT_SEARCH_LIMIT
-    ) -> list[SearchResult]:
+    def search(self, query: str, limit: int = DEFAULT_SEARCH_LIMIT) -> list[dict]:
         if self.embeddings is None or self.documents is None:
-            self.load_or_create_embeddings(load_movies())
-
-        query_embedding = self.generate_embedding(query)
-        scores = np.dot(self.embeddings, query_embedding) / (
-            np.linalg.norm(self.embeddings, axis=1) * np.linalg.norm(query_embedding)
-        )
-        ranked = np.argsort(scores)[::-1][:limit]
-
-        results: list[SearchResult] = []
-        for idx in ranked:
-            doc = self.documents[int(idx)]
-            results.append(
-                format_search_result(
-                    doc_id=doc["id"],
-                    title=doc["title"],
-                    document=doc["description"],
-                    score=float(scores[idx]),
-                )
+            raise ValueError(
+                "No embeddings loaded. Call `load_or_create_embeddings` first."
             )
-        return results
+
+        query_embedding = np.asarray(self.generate_embedding(query))
+        embeddings_array = np.asarray(self.embeddings)
+
+        scored = []
+        for doc, doc_embedding in zip(self.documents, embeddings_array):
+            score = cosine_similarity(query_embedding, doc_embedding)
+            scored.append((score, doc))
+
+        scored.sort(key=lambda x: x[0], reverse=True)
+
+        return [
+            {"score": score, "title": doc["title"], "description": doc["description"]}
+            for score, doc in scored[:limit]
+        ]
+
+
+def cosine_similarity(vec1: np.ndarray, vec2: np.ndarray) -> float:
+    dot_product = np.dot(vec1, vec2)
+    norm1 = np.linalg.norm(vec1)
+    norm2 = np.linalg.norm(vec2)
+
+    if norm1 == 0 or norm2 == 0:
+        return 0.0
+
+    return dot_product / (norm1 * norm2)
 
 
 def verify_embeddings() -> None:
@@ -106,7 +113,32 @@ def verify_model():
     print(f"Max sequence length: {search.model.max_seq_length}")
 
 
-def search_command(query: str, limit: int = DEFAULT_SEARCH_LIMIT) -> list[SearchResult]:
+def fixed_sized_chunking(
+    text, overlap=DEFAULT_CHUNK_OVERLAP, chunk_size=DEFAULT_CHUNK_SIZE
+):
+    words = text.split()
+    chunks = []
+    step_size = chunk_size - overlap
+    for i in range(0, len(words), step_size):
+        chunk_words = words[i : i + chunk_size]
+        if len(chunk_words) <= overlap:
+            break
+        chunks.append(" ".join(chunk_words))
+    return chunks
+
+
+def chunk_text(
+    text: str,
+    chunk_size: int = DEFAULT_CHUNK_SIZE,
+    overlap: int = DEFAULT_CHUNK_OVERLAP,
+) -> None:
+    chunks = fixed_sized_chunking(text, chunk_size=chunk_size, overlap=overlap)
+    print(f"Chunking {len(text)} characters")
+    for i, chunk in enumerate(chunks):
+        print(f"{i + 1}. {chunk}")
+
+
+def search_command(query: str, limit: int = DEFAULT_SEARCH_LIMIT) -> list[dict]:
     ss = SemanticSearch()
     ss.load_or_create_embeddings(load_movies())
     return ss.search(query, limit)
