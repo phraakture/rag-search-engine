@@ -1,0 +1,19 @@
+{
+  "include": ["cli"],
+  "exclude": [
+    "**/.venv",
+    "**/venv",
+    "**/__pycache__",
+    "**/.ruff_cache",
+    "**/cache",
+    "**/.pytest_cache",
+    "**/.mypy_cache",
+    "**/node_modules",
+    "**/build",
+    "**/dist",
+    "**/*.egg-info"
+  ],
+  "typeCheckingMode": "recommended",
+  "reportMissingImports": "error",
+  "reportMissingTypeStubs": "warning"
+}
