@@ -9,5 +9,10 @@ wheels/
 data/
 cache/
 
+# Environment variables
+.env
+
 # Virtual environments
 .venv
+
+.env
