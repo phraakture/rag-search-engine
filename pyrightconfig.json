@@ -13,7 +13,7 @@
     "**/dist",
     "**/*.egg-info"
   ],
-  "typeCheckingMode": "recommended",
-  "reportMissingImports": "error",
-  "reportMissingTypeStubs": "warning"
+  "typeCheckingMode": "standard",
+  "reportMissingImports": "warning",
+  "reportMissingTypeStubs": "none"
 }

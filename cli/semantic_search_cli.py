@@ -115,8 +115,9 @@ def main() -> None:
             documents = load_movies()
             css = ChunkedSemanticSearch()
             embeddings = css.load_or_create_chunk_embeddings(documents)
+            total_chunks = len(css.chunk_metadata) if css.chunk_metadata else 0
             print(f"Total documents: {len(documents)}")
-            print(f"Total chunks: {len(css.chunk_metadata)}")
+            print(f"Total chunks: {total_chunks}")
             print(f"Embeddings shape: {embeddings.shape}")
         case "search_chunked":
             documents = load_movies()

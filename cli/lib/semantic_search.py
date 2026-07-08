@@ -1,6 +1,8 @@
 import json
 import os
 import re
+from collections.abc import Mapping, Sequence
+from typing import Any
 
 from sentence_transformers import SentenceTransformer
 import numpy as np
@@ -86,7 +88,7 @@ class ChunkedSemanticSearch(SemanticSearch):
         self.chunk_embeddings_path = CHUNK_EMBEDDINGS_PATH
         self.chunk_metadata_path = CHUNK_METADATA_PATH
 
-    def build_chunk_embeddings(self, documents: list[dict]) -> np.ndarray:
+    def build_chunk_embeddings(self, documents: Sequence[Mapping[str, Any]]) -> np.ndarray:
         self.documents = documents
         self.document_map = {doc["id"]: doc for doc in documents}
 
@@ -115,7 +117,7 @@ class ChunkedSemanticSearch(SemanticSearch):
 
         return self.chunk_embeddings
 
-    def load_or_create_chunk_embeddings(self, documents: list[dict]) -> np.ndarray:
+    def load_or_create_chunk_embeddings(self, documents: Sequence[Mapping[str, Any]]) -> np.ndarray:
         self.documents = documents
         self.document_map = {doc["id"]: doc for doc in documents}
 
