@@ -9,6 +9,7 @@ class HybridSearch:
         self.documents = documents
         self.semantic_search = ChunkedSemanticSearch()
         self.semantic_search.load_or_create_chunk_embeddings(documents)
+
         self.idx = InvertedIndex()
         if not os.path.exists(self.idx.index_path):
             self.idx.build()
