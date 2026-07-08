@@ -23,6 +23,11 @@ uv run cli/hybrid_search_cli.py weighted_search "query" --alpha 0.5 --limit 5
 # Hybrid RRF search
 uv run cli/hybrid_search_cli.py rrf_search "query" -k 60 --limit 5
 
+# RRF with query enhancement (spell | rewrite | expand)
+uv run cli/hybrid_search_cli.py rrf_search "query" --enhance spell
+uv run cli/hybrid_search_cli.py rrf_search "that bear movie where leo gets attacked" --enhance rewrite
+uv run cli/hybrid_search_cli.py rrf_search "grizzly" --enhance expand
+
 # Normalize scores
 uv run cli/hybrid_search_cli.py normalize 0.5 2.3 1.2 0.5 0.1
 ```
