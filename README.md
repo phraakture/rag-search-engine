@@ -16,6 +16,15 @@ uv run cli/semantic_search_cli.py search_chunked "query" --limit 5
 
 # Keyword search
 uv run cli/keyword_search_cli.py bm25search "query" --limit 5
+
+# Hybrid weighted search
+uv run cli/hybrid_search_cli.py weighted_search "query" --alpha 0.5 --limit 5
+
+# Hybrid RRF search
+uv run cli/hybrid_search_cli.py rrf_search "query" -k 60 --limit 5
+
+# Normalize scores
+uv run cli/hybrid_search_cli.py normalize 0.5 2.3 1.2 0.5 0.1
 ```
 
 ## Pipeline
