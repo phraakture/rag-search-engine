@@ -20,6 +20,16 @@ def _get_client() -> OpenAI:
     )
 
 
+def _call_llm(prompt: str) -> str:
+    client = _get_client()
+    response = client.chat.completions.create(
+        model="openrouter/free",
+        messages=[{"role": "user", "content": prompt}],
+    )
+    content = response.choices[0].message.content
+    return content.strip().strip('"') if content else ""
+
+
 def enhance_query(query: str, method: str) -> str:
     if method == "spell":
         prompt = f"""Fix any spelling errors in the user-provided movie search query below.
@@ -29,7 +39,9 @@ If there are no spelling errors, or if you're unsure, output the original query 
 Output only the final query text, nothing else.
 User query: "{query}"
 """
-    elif method == "rewrite":
+        return _call_llm(prompt) or query
+
+    if method == "rewrite":
         prompt = f"""Rewrite the user-provided movie search query below to be more specific and searchable.
 
 Consider:
@@ -49,14 +61,23 @@ Output only the rewritten query text, nothing else.
 
 User query: "{query}"
 """
-    else:
-        raise ValueError(f"Unknown enhancement method: {method}")
+        return _call_llm(prompt) or query
 
-    client = _get_client()
-    response = client.chat.completions.create(
-        model="openrouter/free",
-        messages=[{"role": "user", "content": prompt}],
-    )
+    if method == "expand":
+        prompt = f"""Expand the user-provided movie search query below with related terms.
 
-    content = response.choices[0].message.content
-    return content.strip().strip('"') if content else query
+Add synonyms and related concepts that might appear in movie descriptions.
+Keep expansions relevant and focused.
+Output only the additional terms; they will be appended to the original query.
+
+Examples:
+- "scary bear movie" -> "scary horror grizzly bear movie terrifying film"
+- "action movie with bear" -> "action thriller bear chase fight adventure"
+- "comedy with bear" -> "comedy funny bear humor lighthearted"
+
+User query: "{query}"
+"""
+        expanded = _call_llm(prompt)
+        return f"{query} {expanded}" if expanded else query
+
+    raise ValueError(f"Unknown enhancement method: {method}")
