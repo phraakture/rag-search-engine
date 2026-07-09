@@ -404,9 +404,9 @@ rag-search-engine/
 - [x] Query enhancement
 - [x] LLM and cross-encoder reranking
 - [x] Offline evaluation dataset
+- [x] Dockerize
 - [ ] REST API
 - [ ] Persistent vector database backend
-- [ ] Dockerize
 
 ---
 
