@@ -1,7 +1,7 @@
 import argparse
 
 from lib.hybrid_search import HybridSearch, normalize_scores
-from lib.llm import enhance_query, rerank_results
+from lib.llm import enhance_query, evaluate_results, rerank_results
 from lib.search_utils import DEFAULT_ALPHA, DEFAULT_SEARCH_LIMIT, load_movies
 
 
@@ -45,6 +45,16 @@ def main() -> None:
         choices=["individual", "batch", "cross_encoder"],
         help="Re-rank results using an LLM or cross-encoder",
     )
+    rrf_parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable debug logging for each pipeline stage",
+    )
+    rrf_parser.add_argument(
+        "--evaluate",
+        action="store_true",
+        help="Rate results using an LLM judge (0-3 scale)",
+    )
 
     args = parser.parse_args()
 
@@ -62,6 +72,9 @@ def main() -> None:
                 print(f"  {result['document']}...")
         case "rrf_search":
             query = args.query
+            if args.debug:
+                print(f"[DEBUG] Original query: '{query}'")
+
             if args.enhance:
                 enhanced_query = enhance_query(query, args.enhance)
                 print(
@@ -69,17 +82,43 @@ def main() -> None:
                 )
                 query = enhanced_query
 
+            if args.debug:
+                print(f"[DEBUG] Query after enhancement: '{query}'")
+
             documents = load_movies()
             hs = HybridSearch(documents)
 
             rrf_limit = args.limit * 5 if args.rerank_method else args.limit
             results = hs.rrf_search(query, args.k, rrf_limit)
 
+            if args.debug:
+                print(f"[DEBUG] Results after RRF search ({len(results)} total):")
+                for i, r in enumerate(results[: args.limit], start=1):
+                    print(
+                        f"  {i}. {r['title']} (RRF: {r['rrf_score']:.3f}, BM25 rank: {r['bm25_rank']}, Semantic rank: {r['semantic_rank']})"
+                    )
+
             if args.rerank_method:
                 print(
                     f"Re-ranking top {len(results)} results using {args.rerank_method} method..."
                 )
                 results = rerank_results(query, results, args.rerank_method)
+
+            if args.debug and args.rerank_method:
+                print(
+                    f"[DEBUG] Results after {args.rerank_method} re-ranking ({len(results)} total):"
+                )
+                score_key = (
+                    "rerank_score"
+                    if args.rerank_method == "individual"
+                    else "rerank_rank"
+                    if args.rerank_method == "batch"
+                    else "cross_encoder_score"
+                )
+                for i, r in enumerate(results[: args.limit], start=1):
+                    print(
+                        f"  {i}. {r['title']} ({score_key}: {r.get(score_key, 'N/A')})"
+                    )
 
             print(f"\nReciprocal Rank Fusion Results for '{query}' (k={args.k}):\n")
 
@@ -104,6 +143,17 @@ def main() -> None:
                 )
                 print(f"   BM25 Rank: {bm25_rank}, Semantic Rank: {semantic_rank}")
                 print(f"   {result['document']}...")
+
+            if args.evaluate:
+                display_results = results[: args.limit]
+                print("\nLLM Evaluation:")
+                scores = evaluate_results(query, display_results)
+                for i, (result, score) in enumerate(
+                    zip(display_results, scores), start=1
+                ):
+                    score_str = str(score) if score is not None else "N/A"
+                    print(f"{i}. {result['title']}: {score_str}/3")
+                print()
         case "normalize":
             norm_scores = normalize_scores(args.scores)
             for norm_score in norm_scores:

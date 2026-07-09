@@ -203,3 +203,45 @@ def _rerank_cross_encoder(
         result["cross_encoder_score"] = float(score)
 
     return sorted(results, key=lambda x: x["cross_encoder_score"], reverse=True)
+
+
+def evaluate_results(query: str, results: list[dict[str, Any]]) -> list[int | None]:
+    formatted_results = [
+        f"{r.get('title', '')} - {r.get('document', '')}" for r in results
+    ]
+
+    prompt = f"""Rate how relevant each result is to this query on a 0-3 scale:
+
+Query: "{query}"
+
+Results:
+{chr(10).join(formatted_results)}
+
+Scale:
+- 3: Highly relevant
+- 2: Relevant
+- 1: Marginally relevant
+- 0: Not relevant
+
+Do NOT give any numbers other than 0, 1, 2, or 3.
+
+Return ONLY the scores in the same order you were given the documents. Return a valid JSON list, nothing else. For example:
+
+[2, 0, 3, 2, 0, 1]"""
+
+    response = _call_llm(prompt)
+    try:
+        scores = json.loads(response)
+    except json.JSONDecodeError, TypeError:
+        return [None] * len(results)
+
+    if not isinstance(scores, list) or len(scores) != len(results):
+        return [None] * len(results)
+
+    valid_scores: list[int | None] = []
+    for s in scores:
+        if isinstance(s, int) and 0 <= s <= 3:
+            valid_scores.append(s)
+        else:
+            valid_scores.append(None)
+    return valid_scores
