@@ -1,3 +1,4 @@
+import json
 import os
 import time
 from typing import Any
@@ -88,9 +89,16 @@ User query: "{query}"
 def rerank_results(
     query: str, results: list[dict[str, Any]], method: str
 ) -> list[dict[str, Any]]:
-    if method != "individual":
-        raise ValueError(f"Unknown re-rank method: {method}")
+    if method == "individual":
+        return _rerank_individual(query, results)
+    if method == "batch":
+        return _rerank_batch(query, results)
+    raise ValueError(f"Unknown re-rank method: {method}")
 
+
+def _rerank_individual(
+    query: str, results: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
     for result in results:
         prompt = f"""Rate how well this movie matches the search query.
 
@@ -115,3 +123,49 @@ Score:"""
         time.sleep(3)
 
     return sorted(results, key=lambda x: x["rerank_score"], reverse=True)
+
+
+def _rerank_batch(query: str, results: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    doc_lines = [
+        f"{result.get('id', 0)}: {result.get('title', '')} - {result.get('document', '')}"
+        for result in results
+    ]
+    doc_list_str = "\n".join(doc_lines)
+
+    prompt = f"""Rank the movies listed below by relevance to the following search query.
+
+Query: "{query}"
+
+Movies:
+{doc_list_str}
+
+Return the movie IDs in order of relevance, best match first.
+
+Your response must be a raw JSON array of integers.
+Do not wrap the JSON in Markdown. Do not use a ```json code block.
+Do not include any explanatory text.
+
+For example:
+[75, 12, 34, 2, 1]
+
+Ranking:"""
+
+    response = _call_llm(prompt)
+    try:
+        ranked_ids = json.loads(response)
+    except json.JSONDecodeError:
+        ranked_ids = []
+
+    result_by_id = {result.get("id", 0): result for result in results}
+    ranked_results = []
+    for rank, doc_id in enumerate(ranked_ids, start=1):
+        if doc_id in result_by_id:
+            result_by_id[doc_id]["rerank_rank"] = rank
+            ranked_results.append(result_by_id[doc_id])
+
+    for result in results:
+        if "rerank_rank" not in result:
+            result["rerank_rank"] = len(ranked_results) + 1
+            ranked_results.append(result)
+
+    return ranked_results

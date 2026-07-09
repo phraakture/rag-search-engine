@@ -42,7 +42,7 @@ def main() -> None:
     rrf_parser.add_argument(
         "--rerank-method",
         type=str,
-        choices=["individual"],
+        choices=["individual", "batch"],
         help="Re-rank results using an LLM",
     )
 
@@ -87,6 +87,8 @@ def main() -> None:
                 print(f"{i}. {result['title']}")
                 if "rerank_score" in result:
                     print(f"   Re-rank Score: {result['rerank_score']:.3f}/10")
+                elif "rerank_rank" in result:
+                    print(f"   Re-rank Rank: {result['rerank_rank']}")
                 print(f"   RRF Score: {result['rrf_score']:.3f}")
                 bm25_rank = (
                     result["bm25_rank"] if result["bm25_rank"] is not None else "-"
