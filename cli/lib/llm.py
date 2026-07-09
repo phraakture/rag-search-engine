@@ -1,4 +1,6 @@
 import os
+import time
+from typing import Any
 
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -81,3 +83,35 @@ User query: "{query}"
         return f"{query} {expanded}" if expanded else query
 
     raise ValueError(f"Unknown enhancement method: {method}")
+
+
+def rerank_results(
+    query: str, results: list[dict[str, Any]], method: str
+) -> list[dict[str, Any]]:
+    if method != "individual":
+        raise ValueError(f"Unknown re-rank method: {method}")
+
+    for result in results:
+        prompt = f"""Rate how well this movie matches the search query.
+
+Query: "{query}"
+Movie: {result.get("title", "")} - {result.get("document", "")}
+
+Consider:
+- Direct relevance to query
+- User intent (what they're looking for)
+- Content appropriateness
+
+Rate 0-10 (10 = perfect match).
+Output ONLY the number in your response, no other text or explanation.
+
+Score:"""
+        response = _call_llm(prompt)
+        try:
+            score = float(response.split()[0])
+        except ValueError, IndexError:
+            score = 0.0
+        result["rerank_score"] = max(0.0, min(10.0, score))
+        time.sleep(3)
+
+    return sorted(results, key=lambda x: x["rerank_score"], reverse=True)

@@ -1,7 +1,7 @@
 import argparse
 
 from lib.hybrid_search import HybridSearch, normalize_scores
-from lib.llm import enhance_query
+from lib.llm import enhance_query, rerank_results
 from lib.search_utils import DEFAULT_ALPHA, DEFAULT_SEARCH_LIMIT, load_movies
 
 
@@ -39,6 +39,12 @@ def main() -> None:
         choices=["spell", "rewrite", "expand"],
         help="Query enhancement method",
     )
+    rrf_parser.add_argument(
+        "--rerank-method",
+        type=str,
+        choices=["individual"],
+        help="Re-rank results using an LLM",
+    )
 
     args = parser.parse_args()
 
@@ -65,10 +71,23 @@ def main() -> None:
 
             documents = load_movies()
             hs = HybridSearch(documents)
-            results = hs.rrf_search(query, args.k, args.limit)
-            for i, result in enumerate(results, start=1):
+
+            rrf_limit = args.limit * 5 if args.rerank_method else args.limit
+            results = hs.rrf_search(query, args.k, rrf_limit)
+
+            if args.rerank_method:
+                print(
+                    f"Re-ranking top {len(results)} results using {args.rerank_method} method..."
+                )
+                results = rerank_results(query, results, args.rerank_method)
+
+            print(f"\nReciprocal Rank Fusion Results for '{query}' (k={args.k}):\n")
+
+            for i, result in enumerate(results[: args.limit], start=1):
                 print(f"{i}. {result['title']}")
-                print(f"  RRF Score: {result['rrf_score']:.3f}")
+                if "rerank_score" in result:
+                    print(f"   Re-rank Score: {result['rerank_score']:.3f}/10")
+                print(f"   RRF Score: {result['rrf_score']:.3f}")
                 bm25_rank = (
                     result["bm25_rank"] if result["bm25_rank"] is not None else "-"
                 )
@@ -77,8 +96,8 @@ def main() -> None:
                     if result["semantic_rank"] is not None
                     else "-"
                 )
-                print(f"  BM25 Rank: {bm25_rank}, Semantic Rank: {semantic_rank}")
-                print(f"  {result['document']}...")
+                print(f"   BM25 Rank: {bm25_rank}, Semantic Rank: {semantic_rank}")
+                print(f"   {result['document']}...")
         case "normalize":
             norm_scores = normalize_scores(args.scores)
             for norm_score in norm_scores:
