@@ -22,8 +22,8 @@ from .search_utils import (
 
 
 class SemanticSearch:
-    def __init__(self) -> None:
-        self.model = SentenceTransformer("all-MiniLM-L6-v2")
+    def __init__(self, model_name: str = "all-MiniLM-L6-v2") -> None:
+        self.model = SentenceTransformer(model_name)
         self.embeddings = None
         self.documents = None
         self.document_map = {}
@@ -81,14 +81,15 @@ class SemanticSearch:
 
 class ChunkedSemanticSearch(SemanticSearch):
     def __init__(self, model_name: str = "all-MiniLM-L6-v2") -> None:
-        super().__init__()
-        self.model = SentenceTransformer(model_name)
+        super().__init__(model_name)
         self.chunk_embeddings = None
         self.chunk_metadata = None
         self.chunk_embeddings_path = CHUNK_EMBEDDINGS_PATH
         self.chunk_metadata_path = CHUNK_METADATA_PATH
 
-    def build_chunk_embeddings(self, documents: Sequence[Mapping[str, Any]]) -> np.ndarray:
+    def build_chunk_embeddings(
+        self, documents: Sequence[Mapping[str, Any]]
+    ) -> np.ndarray:
         self.documents = documents
         self.document_map = {doc["id"]: doc for doc in documents}
 
@@ -117,7 +118,9 @@ class ChunkedSemanticSearch(SemanticSearch):
 
         return self.chunk_embeddings
 
-    def load_or_create_chunk_embeddings(self, documents: Sequence[Mapping[str, Any]]) -> np.ndarray:
+    def load_or_create_chunk_embeddings(
+        self, documents: Sequence[Mapping[str, Any]]
+    ) -> np.ndarray:
         self.documents = documents
         self.document_map = {doc["id"]: doc for doc in documents}
 

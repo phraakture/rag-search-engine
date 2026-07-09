@@ -42,8 +42,8 @@ def main() -> None:
     rrf_parser.add_argument(
         "--rerank-method",
         type=str,
-        choices=["individual", "batch"],
-        help="Re-rank results using an LLM",
+        choices=["individual", "batch", "cross_encoder"],
+        help="Re-rank results using an LLM or cross-encoder",
     )
 
     args = parser.parse_args()
@@ -89,6 +89,10 @@ def main() -> None:
                     print(f"   Re-rank Score: {result['rerank_score']:.3f}/10")
                 elif "rerank_rank" in result:
                     print(f"   Re-rank Rank: {result['rerank_rank']}")
+                elif "cross_encoder_score" in result:
+                    print(
+                        f"   Cross Encoder Score: {result['cross_encoder_score']:.3f}"
+                    )
                 print(f"   RRF Score: {result['rrf_score']:.3f}")
                 bm25_rank = (
                     result["bm25_rank"] if result["bm25_rank"] is not None else "-"

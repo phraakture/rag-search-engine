@@ -9,6 +9,14 @@ from openai import OpenAI
 load_dotenv()
 
 
+try:
+    from sentence_transformers import CrossEncoder
+
+    CROSS_ENCODER_AVAILABLE = True
+except ImportError:
+    CROSS_ENCODER_AVAILABLE = False
+
+
 def _get_api_key() -> str:
     api_key = os.environ.get("OPENROUTER_API_KEY")
     if not api_key:
@@ -93,6 +101,8 @@ def rerank_results(
         return _rerank_individual(query, results)
     if method == "batch":
         return _rerank_batch(query, results)
+    if method == "cross_encoder":
+        return _rerank_cross_encoder(query, results)
     raise ValueError(f"Unknown re-rank method: {method}")
 
 
@@ -169,3 +179,27 @@ Ranking:"""
             ranked_results.append(result)
 
     return ranked_results
+
+
+def _rerank_cross_encoder(
+    query: str, results: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    if not CROSS_ENCODER_AVAILABLE:
+        print(
+            "Warning: sentence-transformers not installed. "
+            "Falling back to original order."
+        )
+        return results
+
+    pairs = [
+        [query, f"{result.get('title', '')} - {result.get('document', '')}"]
+        for result in results
+    ]
+
+    model = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2", device="cpu")
+    scores = model.predict(pairs, show_progress_bar=False, batch_size=32)
+
+    for result, score in zip(results, scores):
+        result["cross_encoder_score"] = float(score)
+
+    return sorted(results, key=lambda x: x["cross_encoder_score"], reverse=True)

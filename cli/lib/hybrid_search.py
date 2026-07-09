@@ -3,15 +3,15 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 from .keyword_search import InvertedIndex
-from .semantic_search import ChunkedSemanticSearch
+from .semantic_search import SemanticSearch
 from .search_utils import DOCUMENT_PREVIEW_LENGTH
 
 
 class HybridSearch:
     def __init__(self, documents: Sequence[Mapping[str, Any]]) -> None:
         self.documents = documents
-        self.semantic_search = ChunkedSemanticSearch()
-        self.semantic_search.load_or_create_chunk_embeddings(documents)
+        self.semantic_search = SemanticSearch()
+        self.semantic_search.load_or_create_embeddings(documents)
         self.idx = InvertedIndex()
         if not os.path.exists(self.idx.index_path):
             self.idx.build()
